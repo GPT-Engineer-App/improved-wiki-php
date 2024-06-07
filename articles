@@ -1,0 +1,75 @@
+<?php
+$servername = "localhost";
+$username = "username";
+$password = "password";
+$dbname = "wikipedia";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+header('Content-Type: application/json');
+
+$method = $_SERVER['REQUEST_METHOD'];
+$request = explode('/', trim($_SERVER['PATH_INFO'],'/'));
+
+switch ($method) {
+  case 'GET':
+    if (isset($request[1])) {
+      $id = intval($request[1]);
+      $sql = "SELECT * FROM articles WHERE id=$id";
+      $result = $conn->query($sql);
+      echo json_encode($result->fetch_assoc());
+    } else {
+      $sql = "SELECT * FROM articles";
+      $result = $conn->query($sql);
+      $articles = [];
+      while($row = $result->fetch_assoc()) {
+        $articles[] = $row;
+      }
+      echo json_encode($articles);
+    }
+    break;
+  case 'POST':
+    $data = json_decode(file_get_contents('php://input'), true);
+    $title = $data['title'];
+    $content = $data['content'];
+    $sql = "INSERT INTO articles (title, content) VALUES ('$title', '$content')";
+    if ($conn->query($sql) === TRUE) {
+      echo json_encode(['id' => $conn->insert_id, 'title' => $title, 'content' => $content]);
+    } else {
+      echo json_encode(['error' => $conn->error]);
+    }
+    break;
+  case 'PUT':
+    $id = intval($request[1]);
+    $data = json_decode(file_get_contents('php://input'), true);
+    $title = $data['title'];
+    $content = $data['content'];
+    $sql = "UPDATE articles SET title='$title', content='$content' WHERE id=$id";
+    if ($conn->query($sql) === TRUE) {
+      echo json_encode(['id' => $id, 'title' => $title, 'content' => $content]);
+    } else {
+      echo json_encode(['error' => $conn->error]);
+    }
+    break;
+  case 'DELETE':
+    $id = intval($request[1]);
+    $sql = "DELETE FROM articles WHERE id=$id";
+    if ($conn->query($sql) === TRUE) {
+      echo json_encode(['id' => $id]);
+    } else {
+      echo json_encode(['error' => $conn->error]);
+    }
+    break;
+  default:
+    echo json_encode(['error' => 'Invalid request method']);
+    break;
+}
+
+$conn->close();
+?>
